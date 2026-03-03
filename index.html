@@ -557,66 +557,60 @@ function closeModal(){
 
 function isMobile(){ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); }
 
-function initPay(){
+async function initPay(){
   const email = document.getElementById('f-email').value.trim();
   if(!email){ alert('Please enter your email'); return; }
 
-  // Check Phantom extension
   if(!window.solana || !window.solana.isPhantom){
-    alert('Please install the Phantom wallet extension from phantom.app, then refresh this page.');
+    alert('Please install the Phantom wallet extension from phantom.app, then refresh.');
     return;
   }
-
-  const recipient = 'Ah44xWHeNTVZJo56eS7wbey5hMJjzwGRxzip6ziWHw7j';
-  const lamports = Math.round(parseFloat(csol) * 1_000_000_000);
 
   document.getElementById('mform').style.display='none';
   document.getElementById('m-processing').style.display='block';
 
-  // Connect to Phantom first (opens popup asking to connect)
-  window.solana.connect()
-    .then(async () => {
-      try {
-        // Build transaction
-        const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
-        const fromPubkey = window.solana.publicKey;
-        const toPubkey = new solanaWeb3.PublicKey(recipient);
+  try {
+    const recipient = 'Ah44xWHeNTVZJo56eS7wbey5hMJjzwGRxzip6ziWHw7j';
+    const lamports = Math.round(parseFloat(csol) * 1_000_000_000);
 
-        const tx = new solanaWeb3.Transaction().add(
-          solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
-        );
+    // Connect silently if already connected, or ask once
+    await window.solana.connect({ onlyIfTrusted: false });
 
-        const { blockhash } = await connection.getLatestBlockhash();
-        tx.recentBlockhash = blockhash;
-        tx.feePayer = fromPubkey;
+    const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+    const fromPubkey = window.solana.publicKey;
+    const toPubkey = new solanaWeb3.PublicKey(recipient);
 
-        // Show waiting screen
-        document.getElementById('m-processing').style.display='none';
-        document.getElementById('m-waiting').style.display='block';
+    const tx = new solanaWeb3.Transaction().add(
+      solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
+    );
 
-        // This opens Phantom popup asking to APPROVE the payment
-        const { signature } = await window.solana.signAndSendTransaction(tx);
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = fromPubkey;
 
-        // Wait for blockchain confirmation
-        await connection.confirmTransaction(signature, 'confirmed');
+    // Immediately after connect — Phantom opens PAYMENT popup
+    document.getElementById('m-processing').style.display='none';
+    document.getElementById('m-waiting').style.display='block';
 
-        // ONLY show success after real confirmation
-        document.getElementById('m-waiting').style.display='none';
-        document.getElementById('msuccess').style.display='block';
+    const { signature } = await window.solana.signAndSendTransaction(tx);
 
-      } catch(e){
-        console.error(e);
-        showForm();
-        if(e.message && e.message.toLowerCase().includes('reject')){
-          alert('Transaction rejected. Please try again.');
-        } else {
-          alert('Transaction failed. Please try again.');
-        }
-      }
-    })
-    .catch(()=>{
-      showForm();
-    });
+    // Confirm on chain
+    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+
+    // Real success
+    document.getElementById('m-waiting').style.display='none';
+    document.getElementById('msuccess').style.display='block';
+
+  } catch(e){
+    console.error(e);
+    showForm();
+    const msg = e.message || '';
+    if(msg.includes('User rejected') || msg.includes('rejected')){
+      // silent — user just closed phantom
+    } else {
+      alert('Something went wrong. Please try again.');
+    }
+  }
 }
 
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
