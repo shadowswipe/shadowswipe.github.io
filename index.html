@@ -562,7 +562,7 @@ async function initPay(){
   if(!email){ alert('Please enter your email'); return; }
 
   if(!window.solana || !window.solana.isPhantom){
-    alert('Please install the Phantom wallet extension from phantom.app, then refresh.');
+    alert('Please install Phantom wallet extension, then refresh.');
     return;
   }
 
@@ -573,42 +573,41 @@ async function initPay(){
     const recipient = 'Ah44xWHeNTVZJo56eS7wbey5hMJjzwGRxzip6ziWHw7j';
     const lamports = Math.round(parseFloat(csol) * 1_000_000_000);
 
-    // Connect silently if already connected, or ask once
-    await window.solana.connect({ onlyIfTrusted: false });
-
-    const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+    // Step 1: Connect
+    await window.solana.connect();
     const fromPubkey = window.solana.publicKey;
-    const toPubkey = new solanaWeb3.PublicKey(recipient);
 
-    const tx = new solanaWeb3.Transaction().add(
+    // Step 2: Build transaction
+    const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+    const toPubkey = new solanaWeb3.PublicKey(recipient);
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+
+    const tx = new solanaWeb3.Transaction({
+      recentBlockhash: blockhash,
+      feePayer: fromPubkey,
+    }).add(
       solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
     );
 
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = fromPubkey;
-
-    // Immediately after connect — Phantom opens PAYMENT popup
+    // Step 3: Sign — this opens Phantom PAYMENT popup
     document.getElementById('m-processing').style.display='none';
     document.getElementById('m-waiting').style.display='block';
 
-    const { signature } = await window.solana.signAndSendTransaction(tx);
+    const signed = await window.solana.signTransaction(tx);
 
-    // Confirm on chain
-    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+    // Step 4: Send
+    const signature = await connection.sendRawTransaction(signed.serialize());
+    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight });
 
-    // Real success
+    // Step 5: Real success
     document.getElementById('m-waiting').style.display='none';
     document.getElementById('msuccess').style.display='block';
 
   } catch(e){
     console.error(e);
     showForm();
-    const msg = e.message || '';
-    if(msg.includes('User rejected') || msg.includes('rejected')){
-      // silent — user just closed phantom
-    } else {
-      alert('Something went wrong. Please try again.');
+    if(!e.message?.includes('reject') && !e.message?.includes('User rejected')){
+      alert('Transaction failed. Please try again.');
     }
   }
 }
