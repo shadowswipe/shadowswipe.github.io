@@ -271,6 +271,7 @@ footer{border-top:1px solid var(--border);padding:40px 48px;display:flex;align-i
   .monitor-cell{min-width:50%;}
 }
 </style>
+<script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 </head>
 <body>
 
@@ -451,11 +452,18 @@ footer{border-top:1px solid var(--border);padding:40px 48px;display:flex;align-i
       <div class="s-p">We've received your payment.<br><br>Our team will contact you within 2 hours at the email you provided to begin processing your card.<br><br><span style="color:rgba(155,135,245,0.5);">Keep an eye on your inbox.</span></div>
     </div>
 
-  </div>
-</div>
+    <!-- NO PHANTOM -->
+    <div id="m-nophantom" style="display:none;padding:48px 32px;text-align:center;">
+      <div style="font-size:2rem;margin-bottom:18px;">👻</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:1.1rem;margin-bottom:10px;color:var(--text);">Phantom Not Installed</div>
+      <div style="font-size:0.55rem;color:var(--muted);line-height:2.2;margin-bottom:24px;">You need the Phantom wallet browser extension to pay on desktop.</div>
+      <a href="https://phantom.app/download" target="_blank" style="display:inline-block;background:var(--text);color:var(--bg);font-family:'Geist Mono',monospace;font-size:0.58rem;letter-spacing:3px;text-transform:uppercase;padding:13px 26px;text-decoration:none;">Install Phantom →</a>
+      <div style="font-size:0.45rem;color:var(--faint);margin-top:14px;line-height:2;">After installing, refresh this page and try again.</div>
+      <button onclick="showForm()" style="display:block;margin:14px auto 0;background:transparent;border:none;color:var(--faint);font-family:'Geist Mono',monospace;font-size:0.48rem;letter-spacing:2px;cursor:pointer;text-transform:uppercase;">← back</button>
+    </div>
 
-<style>
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  </div>
+</div>{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 </style>
 
 <script>
@@ -529,6 +537,7 @@ function showForm(){
   document.getElementById('mform').style.display=''; 
   document.getElementById('m-waiting').style.display='none'; 
   document.getElementById('msuccess').style.display='none'; 
+  document.getElementById('m-nophantom').style.display='none';
   document.getElementById('m-processing').style.display='none';
 }
 
@@ -554,36 +563,67 @@ function initPay(){
 
   const recipient = 'Ah44xWHeNTVZJo56eS7wbey5hMJjzwGRxzip6ziWHw7j';
   const memo = ctype==='visa' ? 'Visa Classic' : 'Amex Gold';
-  const solanaPayUrl = `solana:${recipient}?amount=${csol}&label=Shadow%20Swipe&memo=${encodeURIComponent(memo)}`;
 
-  // Show processing screen first
+  if(isMobile()){
+    // Mobile — open Phantom app with solana: deep link
+    document.getElementById('mform').style.display='none';
+    document.getElementById('m-processing').style.display='block';
+    const solanaUrl = `solana:${recipient}?amount=${csol}&label=Shadow%20Swipe&memo=${encodeURIComponent(memo)}`;
+    setTimeout(()=>{ window.location.href = solanaUrl; }, 500);
+    setTimeout(()=>{
+      document.getElementById('m-processing').style.display='none';
+      document.getElementById('m-waiting').style.display='block';
+    }, 3500);
+    return;
+  }
+
+  // Desktop — check if Phantom extension is installed
+  if(!window.solana || !window.solana.isPhantom){
+    // No Phantom — show install message inside modal
+    document.getElementById('mform').style.display='none';
+    document.getElementById('m-nophantom').style.display='block';
+    return;
+  }
+
+  // Phantom is installed — open payment popup directly (NO connect step)
   document.getElementById('mform').style.display='none';
   document.getElementById('m-processing').style.display='block';
 
-  if(isMobile()){
-    // Mobile — try Phantom app deep link first, fallback to solana: protocol
-    const phantomLink = `phantom://ul/v1/browse?url=${encodeURIComponent(solanaPayUrl)}`;
-    window.location.href = phantomLink;
-    setTimeout(()=>{
+  // Use Phantom's send method which opens popup without connecting first
+  window.solana.request({
+    method: 'solana_requestAccounts'
+  }).then(async () => {
+    try {
+      const { PublicKey, Transaction, SystemProgram, Connection, clusterApiUrl } = window.solanaWeb3;
+      const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
+      const fromPubkey = window.solana.publicKey;
+      const toPubkey = new PublicKey(recipient);
+      const lamports = Math.round(parseFloat(csol) * 1_000_000_000);
+
+      const tx = new Transaction().add(
+        SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
+      );
+      const { blockhash } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = fromPubkey;
+
       document.getElementById('m-processing').style.display='none';
       document.getElementById('m-waiting').style.display='block';
-    }, 3000);
 
-  } else {
-    // Desktop — use Phantom's official send URL which opens extension popup
-    // with recipient and amount already filled in
-    const phantomSendUrl = `https://phantom.app/ul/v1/signAndSendTransaction?network=mainnet-beta&to=${recipient}&amount=${csol}`;
-    
-    // Try solana: protocol first (Phantom intercepts this on desktop)
-    const link = document.createElement('a');
-    link.href = solanaPayUrl;
-    link.click();
+      const { signature } = await window.solana.signAndSendTransaction(tx);
+      await connection.confirmTransaction(signature, 'confirmed');
 
-    setTimeout(()=>{
-      document.getElementById('m-processing').style.display='none';
-      document.getElementById('m-waiting').style.display='block';
-    }, 1500);
-  }
+      document.getElementById('m-waiting').style.display='none';
+      document.getElementById('msuccess').style.display='block';
+
+    } catch(e){
+      console.error(e);
+      showForm();
+      alert('Payment cancelled. Please try again.');
+    }
+  }).catch(()=>{
+    showForm();
+  });
 }
 
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
