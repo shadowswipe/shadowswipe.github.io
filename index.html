@@ -562,7 +562,7 @@ async function initPay(){
   if(!email){ alert('Please enter your email'); return; }
 
   if(!window.solana || !window.solana.isPhantom){
-    alert('Please install Phantom wallet extension, then refresh.');
+    alert('Please install Phantom wallet extension from phantom.app, then refresh.');
     return;
   }
 
@@ -573,41 +573,63 @@ async function initPay(){
     const recipient = 'Ah44xWHeNTVZJo56eS7wbey5hMJjzwGRxzip6ziWHw7j';
     const lamports = Math.round(parseFloat(csol) * 1_000_000_000);
 
-    // Step 1: Connect
+    // Connect wallet
     await window.solana.connect();
     const fromPubkey = window.solana.publicKey;
-
-    // Step 2: Build transaction
-    const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
     const toPubkey = new solanaWeb3.PublicKey(recipient);
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
 
-    const tx = new solanaWeb3.Transaction({
-      recentBlockhash: blockhash,
-      feePayer: fromPubkey,
-    }).add(
-      solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
-    );
+    // Try multiple RPCs until one works
+    const rpcs = [
+      'https://rpc.ankr.com/solana',
+      'https://api.mainnet-beta.solana.com',
+      'https://solana-api.projectserum.com',
+    ];
 
-    // Step 3: Sign — this opens Phantom PAYMENT popup
+    let connection, blockhash;
+    for(const rpc of rpcs){
+      try {
+        connection = new solanaWeb3.Connection(rpc, 'confirmed');
+        const res = await connection.getLatestBlockhash('finalized');
+        blockhash = res.blockhash;
+        break;
+      } catch(e){ console.warn('RPC failed, trying next:', rpc); }
+    }
+
+    if(!blockhash) throw new Error('All RPCs failed. Check your internet connection.');
+
+    // Build transaction
+    const tx = new solanaWeb3.Transaction();
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = fromPubkey;
+    tx.add(solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey, lamports }));
+
+    // Show waiting — Phantom payment popup opens NOW
     document.getElementById('m-processing').style.display='none';
     document.getElementById('m-waiting').style.display='block';
 
+    // Sign — opens Phantom approve screen
     const signed = await window.solana.signTransaction(tx);
 
-    // Step 4: Send
-    const signature = await connection.sendRawTransaction(signed.serialize());
-    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight });
+    // Send raw — skipPreflight avoids simulation errors
+    const sig = await connection.sendRawTransaction(signed.serialize(), {
+      skipPreflight: true,
+      maxRetries: 5
+    });
 
-    // Step 5: Real success
+    console.log('✅ Payment sent! TX:', sig);
+
+    // Show success right after sending
     document.getElementById('m-waiting').style.display='none';
     document.getElementById('msuccess').style.display='block';
 
   } catch(e){
-    console.error(e);
+    console.error('❌ Full error:', e);
     showForm();
-    if(!e.message?.includes('reject') && !e.message?.includes('User rejected')){
-      alert('Transaction failed. Please try again.');
+    const msg = (e.message || '').toLowerCase();
+    if(msg.includes('reject') || msg.includes('cancel') || msg.includes('denied') || msg.includes('user rejected')){
+      // User closed Phantom — no alert
+    } else {
+      alert('Error: ' + e.message);
     }
   }
 }
