@@ -271,7 +271,6 @@ footer{border-top:1px solid var(--border);padding:40px 48px;display:flex;align-i
   .monitor-cell{min-width:50%;}
 }
 </style>
-<script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 </head>
 <body>
 
@@ -425,42 +424,38 @@ footer{border-top:1px solid var(--border);padding:40px 48px;display:flex;align-i
           <div class="a-val" id="m-amount">0.5 SOL</div>
         </div>
         <div class="field"><label>Your Email</label><input type="email" id="f-email" placeholder="you@email.com" /></div>
-        <button class="m-cta" onclick="initPay()">Open Phantom & Pay →</button>
-        <div class="m-note">Phantom wallet will open automatically.<br>100% refundable if not satisfied.</div>
+        <button class="m-cta" onclick="initPay()">Continue →</button>
+        <div class="m-note">100% refundable if not satisfied.</div>
       </div>
     </div>
 
-    <!-- STEP 1.5: PROCESSING -->
-    <div id="m-processing" style="display:none;padding:48px 32px;text-align:center;">
-      <div style="width:48px;height:48px;border:1px solid rgba(200,185,154,0.2);border-top-color:var(--accent);border-radius:50%;margin:0 auto 24px;animation:spin 1s linear infinite;"></div>
-      <div style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:1.1rem;margin-bottom:10px;">Connecting to Phantom</div>
-      <div style="font-size:0.55rem;color:var(--muted);line-height:2.2;letter-spacing:0.5px;">Please wait while we open your wallet...</div>
-    </div>
-
-    <!-- STEP 2: WAITING FOR WALLET -->
-    <div id="m-waiting" style="display:none;padding:48px 32px;text-align:center;">
-      <div style="width:48px;height:48px;border:1px solid rgba(155,135,245,0.3);border-top-color:var(--sol);border-radius:50%;margin:0 auto 24px;animation:spin 1s linear infinite;"></div>
-      <div style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:1.1rem;margin-bottom:10px;">Payment Processing</div>
-      <div style="font-size:0.58rem;color:var(--muted);line-height:2.2;letter-spacing:0.5px;">Complete the payment in your Phantom wallet.<br>Do not close this window.<br><br></div>
-      <div style="font-size:0.5rem;letter-spacing:2px;color:rgba(248,113,113,0.5);text-transform:uppercase;margin-top:8px;">Verifying on-chain — please wait</div>
-    </div>
-
-    <!-- STEP 3: SUCCESS -->
-    <div id="msuccess" style="display:none;padding:48px 32px;text-align:center;">
-      <div class="s-icon" style="color:var(--green);border-color:rgba(74,222,128,0.25);">✓</div>
-      <div class="s-h">Payment Received</div>
-      <div class="s-p">We've received your payment.<br><br>Our team will contact you within 2 hours at the email you provided to begin processing your card.<br><br><span style="color:rgba(155,135,245,0.5);">Keep an eye on your inbox.</span></div>
+    <!-- STEP 2: DEPOSIT SCREEN -->
+    <div id="m-deposit" style="display:none;">
+      <div class="mhdr">
+        <div><div class="m-title">Send Payment</div><div class="m-sub" id="m-desc2">Visa Classic</div></div>
+        <button class="m-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="mbody">
+        <div style="background:rgba(155,135,245,0.05);border:1px solid rgba(155,135,245,0.15);padding:20px 22px;margin-bottom:18px;">
+          <div style="font-size:0.45rem;letter-spacing:3px;text-transform:uppercase;color:var(--faint);margin-bottom:8px;">Send exactly</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;color:var(--sol);" id="dep-amount">0.5 SOL</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);padding:18px 20px;margin-bottom:18px;">
+          <div style="font-size:0.45rem;letter-spacing:3px;text-transform:uppercase;color:var(--faint);margin-bottom:10px;">To this Solana address</div>
+          <div style="font-size:0.58rem;color:var(--text);letter-spacing:0.5px;word-break:break-all;line-height:1.8;margin-bottom:12px;">Ah44xWHeNTVZJo56eS7wbey5hMJjzwGRxzip6ziWHw7j</div>
+          <button onclick="copyAddress()" id="copy-btn" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Geist Mono',monospace;font-size:0.5rem;letter-spacing:2px;text-transform:uppercase;padding:8px 18px;cursor:pointer;transition:all 0.2s;width:100%;">Copy Address</button>
+        </div>
+        <div style="font-size:0.5rem;color:rgba(74,222,128,0.5);letter-spacing:1px;line-height:2.2;text-align:center;margin-bottom:16px;">
+          ↻ After sending, reply to your confirmation email<br>with the transaction ID
+        </div>
+        <div style="font-size:0.45rem;color:var(--faint);letter-spacing:1px;text-align:center;line-height:2;">
+          We will contact you at <span id="dep-email" style="color:rgba(155,135,245,0.5);"></span><br>within 2 hours of receiving payment.
+        </div>
+      </div>
     </div>
 
     <!-- NO PHANTOM -->
-    <div id="m-nophantom" style="display:none;padding:48px 32px;text-align:center;">
-      <div style="font-size:2rem;margin-bottom:18px;">👻</div>
-      <div style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:1.1rem;margin-bottom:10px;color:var(--text);">Phantom Not Installed</div>
-      <div style="font-size:0.55rem;color:var(--muted);line-height:2.2;margin-bottom:24px;">You need the Phantom wallet browser extension to pay on desktop.</div>
-      <a href="https://phantom.app/download" target="_blank" style="display:inline-block;background:var(--text);color:var(--bg);font-family:'Geist Mono',monospace;font-size:0.58rem;letter-spacing:3px;text-transform:uppercase;padding:13px 26px;text-decoration:none;">Install Phantom →</a>
-      <div style="font-size:0.45rem;color:var(--faint);margin-top:14px;line-height:2;">After installing, refresh this page and try again.</div>
-      <button onclick="showForm()" style="display:block;margin:14px auto 0;background:transparent;border:none;color:var(--faint);font-family:'Geist Mono',monospace;font-size:0.48rem;letter-spacing:2px;cursor:pointer;text-transform:uppercase;">← back</button>
-    </div>
+    <div id="m-nophantom" style="display:none;"></div>
 
   </div>
 </div>{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -535,10 +530,7 @@ let ctype, csol;
 
 function showForm(){ 
   document.getElementById('mform').style.display=''; 
-  document.getElementById('m-waiting').style.display='none'; 
-  document.getElementById('msuccess').style.display='none'; 
-  document.getElementById('m-nophantom').style.display='none';
-  document.getElementById('m-processing').style.display='none';
+  document.getElementById('m-deposit').style.display='none';
 }
 
 function openModal(type,sol,desc){
@@ -555,83 +547,25 @@ function closeModal(){
   document.body.style.overflow=''; 
 }
 
-function isMobile(){ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); }
-
-async function initPay(){
+function initPay(){
   const email = document.getElementById('f-email').value.trim();
   if(!email){ alert('Please enter your email'); return; }
 
-  if(!window.solana || !window.solana.isPhantom){
-    alert('Please install Phantom wallet extension from phantom.app, then refresh.');
-    return;
-  }
-
+  // Show deposit screen with address
   document.getElementById('mform').style.display='none';
-  document.getElementById('m-processing').style.display='block';
+  document.getElementById('m-deposit').style.display='block';
+  document.getElementById('dep-amount').textContent = csol + ' SOL';
+  document.getElementById('dep-email').textContent = email;
+  document.getElementById('m-desc2').textContent = document.getElementById('m-desc').textContent;
+}
 
-  try {
-    const recipient = 'Ah44xWHeNTVZJo56eS7wbey5hMJjzwGRxzip6ziWHw7j';
-    const lamports = Math.round(parseFloat(csol) * 1_000_000_000);
-
-    // Connect wallet
-    await window.solana.connect();
-    const fromPubkey = window.solana.publicKey;
-    const toPubkey = new solanaWeb3.PublicKey(recipient);
-
-    // Try multiple RPCs until one works
-    const rpcs = [
-      'https://mainnet.helius-rpc.com/?api-key=2d7cfc69-d0ec-4b3e-910e-0afcb1eafdc3',
-      'https://rpc.ankr.com/solana',
-      'https://api.mainnet-beta.solana.com',
-    ];
-
-    let connection, blockhash;
-    for(const rpc of rpcs){
-      try {
-        connection = new solanaWeb3.Connection(rpc, 'confirmed');
-        const res = await connection.getLatestBlockhash('finalized');
-        blockhash = res.blockhash;
-        break;
-      } catch(e){ console.warn('RPC failed, trying next:', rpc); }
-    }
-
-    if(!blockhash) throw new Error('All RPCs failed. Check your internet connection.');
-
-    // Build transaction
-    const tx = new solanaWeb3.Transaction();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = fromPubkey;
-    tx.add(solanaWeb3.SystemProgram.transfer({ fromPubkey, toPubkey, lamports }));
-
-    // Show waiting — Phantom payment popup opens NOW
-    document.getElementById('m-processing').style.display='none';
-    document.getElementById('m-waiting').style.display='block';
-
-    // Sign — opens Phantom approve screen
-    const signed = await window.solana.signTransaction(tx);
-
-    // Send raw — skipPreflight avoids simulation errors
-    const sig = await connection.sendRawTransaction(signed.serialize(), {
-      skipPreflight: true,
-      maxRetries: 5
-    });
-
-    console.log('✅ Payment sent! TX:', sig);
-
-    // Show success right after sending
-    document.getElementById('m-waiting').style.display='none';
-    document.getElementById('msuccess').style.display='block';
-
-  } catch(e){
-    console.error('❌ Full error:', e);
-    showForm();
-    const msg = (e.message || '').toLowerCase();
-    if(msg.includes('reject') || msg.includes('cancel') || msg.includes('denied') || msg.includes('user rejected')){
-      // User closed Phantom — no alert
-    } else {
-      alert('Error: ' + e.message);
-    }
-  }
+function copyAddress(){
+  navigator.clipboard.writeText('Ah44xWHeNTVZJo56eS7wbey5hMJjzwGRxzip6ziWHw7j');
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = '✓ Copied!';
+  btn.style.color = 'rgba(74,222,128,0.8)';
+  btn.style.borderColor = 'rgba(74,222,128,0.3)';
+  setTimeout(()=>{ btn.textContent='Copy Address'; btn.style.color=''; btn.style.borderColor=''; }, 2500);
 }
 
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
