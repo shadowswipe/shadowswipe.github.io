@@ -529,7 +529,6 @@ function showForm(){
   document.getElementById('mform').style.display=''; 
   document.getElementById('m-waiting').style.display='none'; 
   document.getElementById('msuccess').style.display='none'; 
-  document.getElementById('m-nophantom').style.display='none';
   document.getElementById('m-processing').style.display='none';
 }
 
@@ -555,28 +554,31 @@ function initPay(){
 
   const recipient = 'Ah44xWHeNTVZJo56eS7wbey5hMJjzwGRxzip6ziWHw7j';
   const memo = ctype==='visa' ? 'Visa Classic' : 'Amex Gold';
+  const solanaPayUrl = `solana:${recipient}?amount=${csol}&label=Shadow%20Swipe&memo=${encodeURIComponent(memo)}`;
 
-  // Build Solana Pay URL — works on both mobile and desktop
-  // This opens Phantom directly with recipient + amount pre-filled
-  // No connect needed — Phantom handles everything
-  const solanaPayUrl = `solana:${recipient}?amount=${csol}&label=Shadow%20Swipe&memo=${encodeURIComponent(memo)}&message=${encodeURIComponent('Shadow Swipe — Card Service')}`;
-
-  // Show processing screen
+  // Show processing screen first
   document.getElementById('mform').style.display='none';
   document.getElementById('m-processing').style.display='block';
 
   if(isMobile()){
-    // On mobile — open Phantom app directly
-    window.location.href = solanaPayUrl;
-    // After coming back from app, show waiting
+    // Mobile — try Phantom app deep link first, fallback to solana: protocol
+    const phantomLink = `phantom://ul/v1/browse?url=${encodeURIComponent(solanaPayUrl)}`;
+    window.location.href = phantomLink;
     setTimeout(()=>{
       document.getElementById('m-processing').style.display='none';
       document.getElementById('m-waiting').style.display='block';
     }, 3000);
+
   } else {
-    // On desktop — open Phantom extension via solana: protocol
-    // Phantom intercepts this and opens the payment popup
-    window.open(solanaPayUrl, '_blank');
+    // Desktop — use Phantom's official send URL which opens extension popup
+    // with recipient and amount already filled in
+    const phantomSendUrl = `https://phantom.app/ul/v1/signAndSendTransaction?network=mainnet-beta&to=${recipient}&amount=${csol}`;
+    
+    // Try solana: protocol first (Phantom intercepts this on desktop)
+    const link = document.createElement('a');
+    link.href = solanaPayUrl;
+    link.click();
+
     setTimeout(()=>{
       document.getElementById('m-processing').style.display='none';
       document.getElementById('m-waiting').style.display='block';
