@@ -342,7 +342,7 @@ footer{border-top:1px solid var(--border);padding:40px 48px;display:flex;align-i
         </div>
         <div class="price-row"><div class="price-n">0.5</div><div class="price-u">SOL</div></div>
         <div class="price-approx"> </div>
-        <button class="cta-btn" onclick="openModal('visa','0.5','Visa Classic — $200')">Pay with Solana <span class="arr">→</span></button>
+        <button class="cta-btn" onclick="openModal('visa','0.5','Visa Classic')">Pay with Solana <span class="arr">→</span></button>
       </div>
 
       <div class="card-item amex-item">
@@ -363,7 +363,7 @@ footer{border-top:1px solid var(--border);padding:40px 48px;display:flex;align-i
         </div>
         <div class="price-row"><div class="price-n">1</div><div class="price-u">SOL</div></div>
         <div class="price-approx"> </div>
-        <button class="cta-btn" onclick="openModal('amex','1','Amex Gold — $1,500')">Pay with Solana <span class="arr">→</span></button>
+        <button class="cta-btn" onclick="openModal('amex','1','Amex Gold')">Pay with Solana <span class="arr">→</span></button>
       </div>
 
     </div>
@@ -534,6 +534,8 @@ function openModal(type,sol,desc){
   ctype=type; csol=sol;
   document.getElementById('m-desc').textContent=desc;
   document.getElementById('m-amount').textContent=sol+' SOL';
+  document.getElementById('dep-amount').textContent=sol+' SOL';
+  document.getElementById('m-desc2').textContent=desc;
   showForm();
   document.getElementById('modal').classList.add('open');
   document.body.style.overflow='hidden';
@@ -548,11 +550,9 @@ function initPay(){
   const email = document.getElementById('f-email').value.trim();
   if(!email){ alert('Please enter your email'); return; }
 
-  // Show deposit screen with address
   document.getElementById('mform').style.display='none';
   document.getElementById('m-deposit').style.display='block';
   document.getElementById('dep-amount').textContent = csol + ' SOL';
-  document.getElementById('dep-email').textContent = email;
   document.getElementById('m-desc2').textContent = document.getElementById('m-desc').textContent;
 }
 
